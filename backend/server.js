@@ -9,6 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+
 const connect = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
@@ -20,14 +21,18 @@ const connect = async () => {
     console.log(error);
   }
 }
-
 const userSchema = new mongoose.Schema({
   email: String,
   password: String,
 });
+const Subscribedata=new mongoose.Schema(
+  {
+    email:String,
+
+  }
+);
+const Subscribe =mongoose.model('Subscribe-data',Subscribedata)
 const User = mongoose.model('User', userSchema);
-
-
 app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -48,12 +53,10 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ error: 'An error occurred on the server.' });
   }
 });
-
 // API for Login
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: "Invalid email credentials" });
@@ -76,22 +79,20 @@ app.post("/login", async (req, res) => {
 
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-
   jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
     if (err) {
       return res.status(401).json({ error: 'Invalid token' });
     }
-
     req.userId = decodedToken.userId;
     req.userEmail = decodedToken.email;
     next();
   });
 };
 
+//dashboard 
 app.get('/dashboard', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
@@ -104,6 +105,28 @@ app.get('/dashboard', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'An error occurred on the server.' });
   }
 });
+
+//user subscribe for more update about new arivels and sells
+app.post('/subscribe', async (req, res) => {
+  try {
+    const { email } = req.body; 
+    const existingSubscriber = await User.findOne({ email });
+    if (existingSubscriber) {
+      return res.status(400).json({ error: 'Already Subscribed!' });
+    }
+    else{
+      const newSubscriber = new Subscribe({
+        email,
+      });
+      await newSubscriber.save();
+      res.status(201).json({ message: 'User subscribed successfully' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'An error occurred on the server.' });
+  }
+});
+
 
 connect();
   app.listen(5000, () => console.log('Running on port 5000'));
